@@ -1,18 +1,23 @@
-# Facts Taxonomy for Microservice Migration
+# Facts Taxonomy for Software Application Migration
 
 ## AI Agent Instructions
 
-**Role**: You are a technical analyst and knowledge engineer specializing in extracting, categorizing, and documenting reusable behavioral facts from microservice codebases.
+**Role**: You are a technical analyst and knowledge engineer specializing in extracting, categorizing, and documenting reusable behavioral facts from software application (e.g. microservices) codebases.
 
 **Task**: Use this taxonomy as a reference guide when extracting facts from source code. Each fact should be independently verifiable, reusable across scenarios, and properly categorized according to this taxonomy.
 
+> **Design Principle**: Facts are design assets. Creating, modifying, or referencing a fact changes the architectural understanding of the service and must be treated with the same rigor, traceability, and review discipline as any other design artifact.
+
 ## Purpose
 
-This document contains a comprehensive taxonomy of knowledge about a microservice that is useful for:
+This document contains a comprehensive taxonomy of knowledge about software applications (e.g. microservices) that is useful for:
+
 - Service-to-service comparison
 - Language migration (e.g., Go to Rust, Java to Go)
 - Technology stack modernization
 - Behavioral documentation and specification
+
+**Framework Independence**: This taxonomy is a logical classification system. It is not tied to any specific tool or framework. The "facts" derived from this taxonomy are intended to be universal design atoms that can be fed into any AI code generation workflow or human architectural review process.
 
 The facts taxonomy provides a structured framework for AI agents to understand what aspects of a service to document and how to categorize them
 
@@ -29,12 +34,14 @@ A **Fact** is:
 **If it doesn't meet this bar → it's an attribute, not a Fact.**
 
 **AI Instructions**: When analyzing code, ask yourself:
+
 - Is this behavior/rule used in multiple places? → **Fact**
 - Is this specific to one handler/function? → **Attribute**
 - Can this be tested independently? → **Fact**
 - Is this a structural detail of one component? → **Attribute**
 
 **Examples**:
+
 - ✓ **Fact**: JWT token validation (used by all authenticated endpoints)
 - ✗ **Attribute**: Specific parameter name in one endpoint
 - ✓ **Fact**: Soft-delete filter logic (applied to multiple queries)
@@ -42,12 +49,12 @@ A **Fact** is:
 
 ### 1.2 Promotion Rule (Shared vs Local)
 
-| Item | Representation |
-|------|----------------|
-| Used by ≥2 handlers | Own Fact ID |
+| Item                   | Representation            |
+|------------------------|---------------------------|
+| Used by ≥2 handlers    | Own Fact ID               |
 | Used by 1 handler only | Attribute of handler fact |
-| Semantically reusable | Fact |
-| Purely structural | Attribute |
+| Semantically reusable  | Fact                      |
+| Purely structural      | Attribute                 |
 
 ### 1.3 Fact Reference Rule
 
@@ -55,7 +62,7 @@ A **Fact** is:
 
 ### 1.4 ID Format
 
-```
+```text
 F X YY . ZZZ
 │ │  │    └── sequential atomic fact ID (001-999)
 │ │  └─────── subcategory (numeric 00-99)
@@ -64,18 +71,21 @@ F X YY . ZZZ
 ```
 
 **Format Rules**:
+
 - Always use alphabetic category (e.g., A, B, C)
 - Always use 2-digit subcategory (e.g., 00, 01, 15)
 - Always use 3-digit fact ID (e.g., .001, .050, .999)
 - Complete format: `[FA01.001]`, `[FN00.010]`, `[FC07.099]`
 
-**AI Instructions**: 
+**AI Instructions**:
+
 - When creating new facts, use the next available sequential number in the appropriate category
 - **CRITICAL**: IDs are append-only. Never renumber existing facts
 - If a category is full (999 facts), create a new subcategory
 - Always include the brackets when referencing: `[FA01.001]` not `FA01.001`
 
 **Examples**:
+
 - ✓ Correct: `[FA01.001]`, `[FC00.015]`, `[FN00.100]`
 - ✗ Wrong: `[F1.1]`, `[F20.15]`, `FA01.001` (missing brackets)
 
@@ -84,6 +94,7 @@ F X YY . ZZZ
 ## 2. Category Map
 
 **AI Instructions**: This section provides the complete taxonomy of fact categories. When extracting facts from code:
+
 1. Identify which category the fact belongs to
 2. Assign the next available ID in that category
 3. Document all attributes and references
@@ -98,11 +109,13 @@ F X YY . ZZZ
 **Purpose**: High-level service definition and boundaries
 
 **AI Instructions**: Extract these by analyzing:
+
 - README files, architecture documents
 - Service interfaces and API definitions by scanning the source code
 - Dependency declarations (go.mod, package.json, etc.)
 
 **Facts**:
+
 - [FA00.001] – Service mission statement
 - [FA00.002] – Bounded context definition
 - [FA00.003] – Non-goals / explicitly unsupported behavior
@@ -110,6 +123,7 @@ F X YY . ZZZ
 - [FA00.005] – Data ownership boundaries
 
 **Example**:
+
 ```markdown
 [FA00.001] Service Mission Statement
 **Description**: User management service responsible for CRUD operations on user entities
@@ -211,7 +225,7 @@ F X YY . ZZZ
 
 #### FB02 — End-to-End Scenarios
 
-*(These are orchestrations, not APIs)*
+**Please note:** These are orchestrations, not APIs
 
 - [FB02.001] – Create user scenario
 - [FB02.002] – Update user scenario
@@ -220,6 +234,7 @@ F X YY . ZZZ
 - [FB02.005] – Data export scenario
 
 Each scenario references:
+
 - REST / gRPC handlers
 - Service methods
 - DB operations
@@ -242,17 +257,20 @@ Each scenario references:
 
 **Purpose**: Document each REST endpoint as a distinct fact
 
-**AI Instructions**: 
+**AI Instructions**:
+
 - Each unique endpoint (method + path) gets its own fact
 - Extract by analyzing route definitions, HTTP handlers, controller methods
 - Look for: `http.HandleFunc`, `@GetMapping`, `app.get()`, etc.
 
 **Fact Structure**:
+
 - One fact per endpoint
 - Document method, path, purpose
 - Reference related schemas, auth, and error facts
 
 **Facts**:
+
 - [FC00.001] – POST /users
 - [FC00.002] – GET /users/{id}
 - [FC00.003] – DELETE /users/{id}
@@ -264,11 +282,13 @@ Each scenario references:
 - [FC00.009] – GET /ready
 
 **What to Document as Attributes (NOT separate facts)**:
+
 - Handler-specific local variables
 - Endpoint-specific parameter names used only once
 - Internal implementation details
 
 **What to Reference as Facts**:
+
 - Request/response schemas (FC03.xxx, FC05.xxx)
 - Shared query parameters (FC01.xxx)
 - Authentication methods (FE01.xxx)
@@ -276,6 +296,7 @@ Each scenario references:
 - Middleware (FC09.xxx)
 
 **Example**:
+
 ```markdown
 [FC00.001] POST /users
 **Description**: Creates a new user in the system
@@ -753,7 +774,6 @@ Each scenario references:
 - [FJ06.002] – Database failure simulation
 - [FJ06.003] – Dependency failure simulation
 - [FJ06.004] – Resource exhaustion tests
-
 
 ---
 
