@@ -52,18 +52,43 @@ This document outlines the implementation tasks required to rebuild the User Ser
 
 ### 2.1 Core Tables
 
-- [ ] 2.1.1 Create tenants reference (external table)
-- [ ] 2.1.2 Create users table with indexes [FH03.001, FB00.001]
-- [ ] 2.1.3 Create audit_logs table
-- [ ] 2.1.4 Create user_sessions table
-- [ ] 2.1.5 Create messages table for retry buffer
+- [ ] **2.1.1** Create tenants reference (external table)
+  - Acceptance: Reference table exists for foreign key constraints
+  - References: [FB00.004]
+
+- [ ] **2.1.2** Create users table with all fields [FH03.001, FB00.001]
+  - Acceptance: Table exists with columns (id, tenant_id, email, username, password_hash, full_name, status, created_at, updated_at, deleted_at, created_by, updated_by)
+  - References: [FB00.001], [FH03.001]
+
+- [ ] **2.1.3** Create audit_logs table
+  - Acceptance: Table exists with columns for tracking user actions
+  - References: [FG03.002], [FG03.003]
+
+- [ ] **2.1.4** Create user_sessions table
+  - Acceptance: Table exists for session tracking
+  - References: External Auth Provider integration
+
+- [ ] **2.1.5** Create messages table for retry buffer [FG04.003]
+  - Acceptance: Table exists with columns for failed event storage
+  - References: [FG04.003]
 
 ### 2.2 Indexes & Constraints
 
-- [ ] 2.2.1 Add UNIQUE constraint on (tenant_id, email) for users [FB01.002, FH03.001]
-- [ ] 2.2.2 Add INDEX on (tenant_id, status) [FH03.001]
-- [ ] 2.2.3 Add INDEX on (deleted_at) [FH03.001]
-- [ ] 2.2.4 Add foreign key constraints
+- [ ] **2.2.1** Add UNIQUE constraint on (tenant_id, email) for users [FB01.002, FH03.001]
+  - Acceptance: Constraint exists, duplicate email within tenant returns error
+  - References: [FB01.002], [FH03.001]
+
+- [ ] **2.2.2** Add INDEX on (tenant_id, status) [FH03.001]
+  - Acceptance: Index exists, query performance verified for list operations
+  - References: [FH03.001]
+
+- [ ] **2.2.3** Add INDEX on (deleted_at) [FH03.001]
+  - Acceptance: Index exists, soft-delete filtering optimized
+  - References: [FH03.001], [FH04.002]
+
+- [ ] **2.2.4** Add foreign key constraints
+  - Acceptance: FK constraints exist for tenant_id references
+  - References: [FB00.004]
 
 ---
 
@@ -71,10 +96,21 @@ This document outlines the implementation tasks required to rebuild the User Ser
 
 ### 3.1 Entities
 
-- [ ] 3.1.1 Define User entity struct [FB00.001]
-- [ ] 3.1.2 Define Tenant entity struct (reference)
-- [ ] 3.1.3 Define AuditLog entity struct
-- [ ] 3.1.4 Define UserSession entity struct
+- [ ] **3.1.1** Define User entity struct [FB00.001]
+  - Acceptance: Struct matches database schema, includes JSON tags for API serialization
+  - References: [FB00.001], user.go
+
+- [ ] **3.1.2** Define Tenant entity struct (reference)
+  - Acceptance: Struct includes id, uuid, status fields
+  - References: [FB00.004], tenant.go
+
+- [ ] **3.1.3** Define AuditLog entity struct
+  - Acceptance: Struct includes actor, action, timestamp, metadata fields
+  - References: [FG03.002], [FG03.003]
+
+- [ ] **3.1.4** Define UserSession entity struct
+  - Acceptance: Struct includes user_id, session_id, expires_at fields
+  - References: Session management logic
 
 ### 3.2 Value Objects
 
@@ -158,20 +194,51 @@ This document outlines the implementation tasks required to rebuild the User Ser
 
 ### 5.1 Auth Provider Integration
 
-- [ ] 5.1.1 Implement Auth Provider HTTP client [FG01.001, FG01.002]
-- [ ] 5.1.2 Add POST /api/auth/v1/verify call [FG01.001]
-- [ ] 5.1.3 Add POST /api/auth/v1/revoke call [FG01.002]
-- [ ] 5.1.4 Implement retry logic (3 retries, exponential backoff) [FF04.003]
-- [ ] 5.1.5 Add circuit breaker (50% threshold)
-- [ ] 5.1.6 Set timeout to 10 seconds [FG01.001]
+- [ ] **5.1.1** Implement Auth Provider HTTP client [FG01.001, FG01.002, FA05.001]
+  - Acceptance: Client configured with base URL from config, connection pooling enabled
+  - References: [FA05.001], [FG01.001], [FG01.002]
+
+- [ ] **5.1.2** Add POST /api/auth/v1/verify call [FG01.001]
+  - Acceptance: Validates JWT token, returns claims on success, 401 on failure
+  - References: [FG01.001], `internal/clients/auth_client.go`
+
+- [ ] **5.1.3** Add POST /api/auth/v1/revoke call [FG01.002]
+  - Acceptance: Revokes user sessions, logs error on failure (non-critical)
+  - References: [FG01.002], `internal/clients/auth_client.go`
+
+- [ ] **5.1.4** Implement retry logic (3 retries, exponential backoff) [FF04.003]
+  - Acceptance: Retries with 1s, 2s, 4s backoff intervals
+  - References: [FF04.003], [FA05.001]
+
+- [ ] **5.1.5** Add circuit breaker (50% threshold)
+  - Acceptance: Circuit opens after 50% failures over 10 requests, sleep window 5s
+  - References: Integration Points section
+
+- [ ] **5.1.6** Set timeout to 10 seconds [FG01.001, FA05.001]
+  - Acceptance: Connection timeout and request timeout both 10s
+  - References: [FG01.001], [FA05.001]
 
 ### 5.2 Tenant Service Integration
 
-- [ ] 5.2.1 Implement Tenant Service HTTP client
-- [ ] 5.2.2 Add GET /api/tenants/v1/tenants/{id} call [FB00.004]
-- [ ] 5.2.3 Implement retry logic (3 retries)
-- [ ] 5.2.4 Add circuit breaker
-- [ ] 5.2.5 Set timeout to 10 seconds
+- [ ] **5.2.1** Implement Tenant Service HTTP client [FA05.003]
+  - Acceptance: Client configured with base URL from config, caching enabled (5 min TTL)
+  - References: [FA05.003], `internal/clients/tenant_client.go`
+
+- [ ] **5.2.2** Add GET /api/tenants/v1/tenants/{id} call [FB00.004, FG01.003]
+  - Acceptance: Retrieves tenant details, validates status, returns 404 if not found
+  - References: [FB00.004], [FG01.003]
+
+- [ ] **5.2.3** Implement retry logic (3 retries) [FF04.003]
+  - Acceptance: Retries with exponential backoff on failure
+  - References: [FF04.003], [FA05.003]
+
+- [ ] **5.2.4** Add circuit breaker
+  - Acceptance: Circuit breaker configured with appropriate thresholds
+  - References: Integration Points section
+
+- [ ] **5.2.5** Set timeout to 30 seconds [FA05.003]
+  - Acceptance: Request timeout 30s, connection timeout 10s
+  - References: [FA05.003]
 
 ---
 
@@ -211,14 +278,37 @@ This document outlines the implementation tasks required to rebuild the User Ser
 
 ### 7.1 Prune Inactive Users Job
 
-- [ ] 7.1.1 Implement CLI flag or cron trigger [FI02.001]
-- [ ] 7.1.2 Query users with status INACTIVE and updated_at > 30 days [FH02.002, FB03.002]
-- [ ] 7.1.3 Implement batch processing (100 users per batch) [FI02.001]
-- [ ] 7.1.4 Perform hard delete [FH02.002]
-- [ ] 7.1.5 Publish UserPruned events [FG02.005]
-- [ ] 7.1.6 Log job outcome [FA08.001]
-- [ ] 7.1.7 Set timeout to 1 hour [FI02.001]
-- [ ] 7.1.8 Implement retry logic on database errors [FF04.003]
+- [ ] **7.1.1** Implement CLI flag or cron trigger [FI02.001]
+  - Acceptance: Job can be triggered via CLI or scheduled cron (daily at 00:00 UTC)
+  - References: [FI02.001], job scheduler configuration
+
+- [ ] **7.1.2** Query users with status INACTIVE and updated_at > 30 days [FH02.002, FB03.002]
+  - Acceptance: Query returns correct users based on retention period (configurable)
+  - References: [FH02.002], [FB03.002]
+
+- [ ] **7.1.3** Implement batch processing (100 users per batch) [FI02.001]
+  - Acceptance: Job processes users in batches to avoid memory issues
+  - References: [FI02.001]
+
+- [ ] **7.1.4** Perform hard delete [FH02.002]
+  - Acceptance: DELETE FROM users WHERE id IN (...) executed successfully
+  - References: [FH02.002]
+
+- [ ] **7.1.5** Publish UserPruned events [FG02.005]
+  - Acceptance: Event published for each deleted user with correct payload
+  - References: [FG02.005]
+
+- [ ] **7.1.6** Log job outcome [FA08.001]
+  - Acceptance: Structured log with count of pruned users, duration, errors
+  - References: [FA08.001]
+
+- [ ] **7.1.7** Set timeout to 1 hour [FI02.001]
+  - Acceptance: Job terminates after 1 hour if not complete
+  - References: [FI02.001]
+
+- [ ] **7.1.8** Implement retry logic on database errors [FF04.003]
+  - Acceptance: 3 retries with exponential backoff on transient DB errors
+  - References: [FF04.003]
 
 ### 7.2 Message Retry Job
 

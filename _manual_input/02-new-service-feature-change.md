@@ -60,4 +60,4 @@ When processing this file:
    - Error handling from existing error patterns
    - Security considerations from current auth/authz model
 
-6. **Mark outputs** with `[NEW]` or `[MODIFIED]` prefixes per `prompts/3_SPEC_UPGRADE.md`
+6. **Mark outputs** with `[NEW]` or `[MODIFIED]` prefixes per `prompts/03-spec-upgrade.md`

@@ -20,9 +20,12 @@ This document outlines the process for creating an enhanced specification by inc
 
 **AI Instructions**: Follow these steps to prepare the enhanced specification:
 
-1. **Review change requests**: Read `_change_intent/service-feature-change.md` for developer-requested changes
-2. **Copy base file**: Create `new-behavior.md` as an exact copy of `orig-behavior.md`
-3. **Apply user proposals**: Incorporate all requirements from the change intent file and any additional user requests
+1. **Review change requests**: Read `_manual_input/02-new-service-feature-change.md` for developer-requested changes
+2. **Copy base file**: 
+   1. Create `new-behavior.md` as an exact copy of `orig-behavior.md`
+   2. Create `new-design-facts-and-rationale.md` as an exact copy of `orig-design-facts-and-rationale.md`
+   3. Create `new-tasks.md` as an exact copy of `orig-tasks.md`
+3. **Apply user proposals**: Incorporate all requirements from the change intent file and any additional user requests in `new-behavior.md`, `new-design-facts-and-rationale.md`, and `new-tasks.md`
 4. **Reference FACTS_TAXONOMY.md**: Use TAXONOMY for proper fact categorization and ID format when creating new facts
 5. **Preserve structure**: Maintain the original document structure, section order, and formatting to enable clean diffs
 6. **Mark all changes**: Use `[NEW]` prefix for new content and `[MODIFIED]` for changed content
@@ -31,7 +34,7 @@ This document outlines the process for creating an enhanced specification by inc
 
 #### 2.2.1 Gap Analysis
 
-**AI Instructions**: Analyze the original specification for gaps and review `_change_intent/service-feature-change.md` for requested changes:
+**AI Instructions**: Analyze the original specification for gaps and review `_manual_input/02-new-service-feature-change.md` for requested changes:
 
 - **Missing scenarios**: Identify common use cases not covered (e.g., bulk operations, search/filter, pagination)
 - **Incomplete requirements**: Find scenarios with vague descriptions or missing error handling
@@ -169,7 +172,7 @@ This document outlines the process for creating an enhanced specification by inc
 3. All modifications marked with `[MODIFIED]`
 4. References link to facts using `[FXYY.ZZZ]` format per FACTS_TAXONOMY.md
 5. Each scenario includes: trigger, flow, validation, errors, state changes, references, and code locations
-6. All changes from `_change_intent/service-feature-change.md` incorporated
+6. All changes from `_manual_input/02-new-service-feature-change.md` incorporated
 
 **Code Generation Readiness**: Ensure every scenario in this document is detailed enough to be fed into an AI code generator without additional human context. Ambiguities here will lead to bugs in the generated code.
 

@@ -8,6 +8,10 @@
 
 **Formatting Reminder**: Before producing any output, open the samples in `/samples/` (especially `orig-behavior.md`, `orig-design-facts-and-rationale.md`, and `orig-tasks.md`). Paste the relevant sample snippets into your working context and mirror their structure exactly—section headings, bullet order, checklists, fact references, and acceptance criteria must match the samples unless the user explicitly asks for a deviation.
 
+**Context Reference**: Review `_manual_input/01-orig-service-notes.md` for additional context about the service including CTI specifications, dependent services, business rules, security requirements, and architectural decisions. This file provides the "why" behind design choices that may not be evident from code alone.
+
+**CRITICAL - Code Priority Rule**: If any information in `_manual_input/01-orig-service-notes.md` conflicts with what you observe in the actual source code, **the code is always the source of truth**. The notes file explains intent and context, but the code defines current behavior. Document what the code actually does, then note any discrepancies in the design rationale.
+
 ## 1. Purpose
 
 This document provides instructions for analyzing an existing Go-lang service source code and generating comprehensive behavioral specifications and reusable facts.
@@ -20,10 +24,12 @@ This document provides instructions for analyzing an existing Go-lang service so
 
 **AI Instructions**: Systematically analyze the codebase by:
 
-1. **Identify entry points**: Locate all HTTP handlers, gRPC services, CLI commands, and background job definitions
-2. **Trace execution flows**: Follow the code path from entry point through business logic to data persistence
-3. **Extract contracts**: Document API schemas, request/response structures, and data models
-4. **Map dependencies**: Identify all external service calls, database operations, and third-party integrations
+1. **Review context notes**: Read `_manual_input/01-orig-service-notes.md` to understand service identity, architecture patterns, external dependencies, and business context
+2. **Identify entry points**: Locate all HTTP handlers, gRPC services, CLI commands, and background job definitions
+3. **Trace execution flows**: Follow the code path from entry point through business logic to data persistence
+4. **Extract contracts**: Document API schemas, request/response structures, and data models
+5. **Map dependencies**: Identify all external service calls, database operations, and third-party integrations
+6. **Cross-reference with notes**: Use the context notes to understand CTI patterns, state machines, dependent service contracts, and security/compliance requirements that may not be obvious from code inspection alone
 
 **Output to `orig-behavior.md`**:
 
@@ -153,9 +159,34 @@ For each scenario, verify and document:
 - [ ] Performance metrics
 - [ ] Monitoring points
 
-### 3.5 Anomaly Detection
+### 3.5 Hierarchical Data & Inheritance Patterns
 
-Identify software anomalies in existing source code that require special attention during specification generation for new code implementation:
+**AI Instructions**: For services with hierarchical data structures (parent-child relationships, tenant trees, organizational hierarchies), document inheritance behavior comprehensively. Below are some of the points that may or may not apply, use those and add any other points that you think are relevant based on the source code:
+
+- [ ] **Identify inheritance patterns**: Look for parent-child relationships, path calculations, value resolution logic
+- [ ] **Document inheritance rules**: Explain what data/values inherit, what doesn't, and why (with domain-specific rules)
+- [ ] **Specify override behavior**: How children override parent values, priority order, conflict resolution
+- [ ] **Control flags**: Document all flags/settings that enable/disable inheritance (namespace-level, query-level, entity-level)
+- [ ] **Path calculation**: Document how hierarchical paths are calculated and used (tenant_path, barrier_path, etc.)
+- [ ] **Domain-specific rules**: Different entity types may have different inheritance rules (e.g., singular vs multiple domain objects)
+- [ ] **Inheritance isolation**: Document barrier/boundary mechanisms that prevent inheritance propagation
+- [ ] **Value resolution order**: Document the complete priority chain (explicit → inherited → generic → default)
+- [ ] **Code references**: Point to value resolution logic, path calculation functions, and query implementations
+
+**Search patterns**: `inherit`, `parent`, `child`, `path`, `hierarchy`, `resolve`, `propagate`, `cascade`, `barrier`, `override`
+
+**Output location**: Create a dedicated "Value Inheritance Behavior" or "Hierarchical Data Patterns" section in `orig-behavior.md` under "Additional Notes" that consolidates:
+
+- Inheritance hierarchy overview
+- Rules by entity/domain type
+- Control flags and their effects
+- Path calculation mechanisms
+- Override behavior and priority
+- Code references for implementation
+
+### 3.6 Anomaly Detection
+
+Identify and documentsoftware anomalies in existing source code that require special attention during specification generation for new code implementation:
 
 - [ ] **Dead code detection**: Unused functions, variables, or imports that may indicate incomplete refactoring
 - [ ] **Unhandled errors**: Missing error handling paths that could cause silent failures or panics
@@ -168,7 +199,7 @@ Identify software anomalies in existing source code that require special attenti
 - [ ] **Missing input validation**: Endpoints or functions lacking proper input sanitization
 - [ ] **Inconsistent logging**: Varied logging patterns that complicate debugging and monitoring
 
-### 3.6 Any other relevant tehnical points
+### 3.7 Any other relevant technical points
 
 ## 4. Critical Verification Requirements
 
@@ -241,6 +272,57 @@ Identify software anomalies in existing source code that require special attenti
 - **Purpose**: [Why we call this service]
 - **Protocol**: [HTTP/gRPC/etc]
 - **Operations**: [List of operations with fact references]
+
+## Additional Notes
+
+### Value Inheritance Behavior (if applicable)
+
+**AI Instructions**: Include this section ONLY if the service implements hierarchical data with inheritance. Structure as follows:
+
+#### Inheritance Hierarchy
+[Overview of how inheritance works in this service]
+1. Path calculation mechanism [Fact references]
+2. Barrier/isolation mechanisms [Fact references]
+3. Value resolution order [Fact references]
+
+#### Inheritance Rules by [Entity/Domain] Type
+**[Type Category 1]** ([Specific types]):
+- [Inheritance behavior]
+- [What inherits, what doesn't]
+- [Rationale]
+
+**[Type Category 2]** ([Specific types]):
+- [Inheritance behavior]
+- [What inherits, what doesn't]
+- [Rationale]
+
+#### Inheritance Control Flags
+**[Level]-level** (e.g., Namespace-level, Entity-level):
+- `flag_name`: [Description and effect] [Fact reference]
+
+**Query-level**:
+- `parameter_name`: [Description and effect] [Fact reference]
+
+#### Inheritance Path Calculation
+**[Path Type 1]** (`path_field_name`):
+- [How calculated]
+- [What it's used for]
+- [Format/structure]
+
+**[Path Type 2]** (`path_field_name`):
+- [How calculated]
+- [What it's used for]
+- [Format/structure]
+
+#### Value Override Behavior
+- [Priority rule 1 with examples]
+- [Priority rule 2 with examples]
+- [Edge cases and special handling]
+
+**Code References**:
+- Value resolution: [file path]
+- Path calculation: [file path]
+- Inheritance queries: [file path]
 ```
 
 ### 5.2 orig-design-facts-and-rationale.md Structure
@@ -421,5 +503,62 @@ You may add any other relevant tasks.
 - ✓ Include code snippets for complex logic
 - ✓ Cross-reference related scenarios and facts
 - ✓ Tasks reference specific facts and scenarios for traceability
+
+### 5.5 Analysis Guardrails
+
+**AI Instructions**: Follow these critical rules to ensure analysis accuracy and completeness:
+
+#### 5.5.1 Code Reference Accuracy
+
+- **No placeholder references**: Replace every `Code Reference:` stub with actual logic summary
+- **Verify before citing**: Only cite file paths and line spans after confirming they exist in the codebase
+- **No speculation**: Do not reference files, functions, or managers that you haven't verified exist
+- **Scope limitation**: Use only files provided in the analysis scope; if information is absent, state the limitation instead of guessing
+
+#### 5.5.2 Domain Model Completeness
+
+- **Enumerate all entities**: List every entity observed in code, API payloads, and database schema
+- **Cross-verify naming**: Check for naming inconsistencies (e.g., `Setting` vs `Settings`) across code, API, and database
+- **Document discrepancies**: If code mixes entity names, note the discrepancy with file references
+- **Validate relationships**: Ensure all entity relationships (one-to-many, many-to-many, inheritance) are captured
+
+#### 5.5.3 API-to-Code Linkage
+
+- **Map API contracts to handlers**: For every API endpoint/trait, link to the handler, middleware, or validator implementing it
+- **Provide implementation references**: Include file + function references so readers can trace from API spec to code
+- **Document middleware chains**: Capture authentication, authorization, validation, and error handling middleware
+
+#### 5.5.4 External Specifications Integration
+
+- **Reference authoritative specs**: When service implements external standards (e.g., CTI, OAuth, OpenAPI), cite the canonical specification
+- **Match terminology**: Use exact terminology from external specs; do not invent or paraphrase
+- **Version alignment**: Note which version of external spec the service implements
+- **Consult context notes**: Check `_manual_input/01-orig-service-notes.md` for links to external specifications
+
+#### 5.5.5 Deployment-Specific Behavior
+
+- **Identify deployment modes**: If service supports multiple deployment targets (cloud, on-prem, local-agent), document separately
+- **Mode-specific constraints**: Call out authentication, tenant scope, data sync, and configuration differences per deployment mode
+- **Conditional logic**: Capture feature flags or environment variables that alter behavior by deployment
+
+#### 5.5.6 Event Emission Accuracy
+
+- **Document event triggers**: For every event emission, note what triggers it (create, update, delete, state change)
+- **Configuration dependencies**: Include config flags/environment variables controlling event emission
+- **Include producer references**: Cite the code location that publishes events and the queues/exchanges used
+- **Payload structure**: Document event payload schema and any transformations applied
+
+#### 5.5.7 Privileged Access Patterns
+
+- **Root/admin behavior**: Document any "superuser" or "root tenant" bypass logic that skips normal restrictions
+- **Privilege escalation paths**: Capture how elevated permissions are checked and enforced
+- **Confirm against code**: Verify privileged access rules in tenant/user manager code before documenting
+
+#### 5.5.8 Anomalies and Technical Debt
+
+- **Critical findings only**: List only critical-path issues (missing checks, inconsistent error handling, security gaps)
+- **Structured format**: For each anomaly: scenario, impact, recommended mitigation, file reference
+- **Ignore low-impact**: Skip test-only or cosmetic issues unless they affect production behavior
+- **Provenance logging**: Document inconsistencies in a separate log file with facts + code links
 
 You may add any other relevant standards.

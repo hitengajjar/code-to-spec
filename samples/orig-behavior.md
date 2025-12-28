@@ -34,7 +34,7 @@ Integrates with external Auth Provider for JWT token validation and session mana
 
 **Primary Path:**
 
-1. Client sends authenticated request with JWT token [FA00.001]
+1. Client sends authenticated request with JWT token [FE01.001]
 2. System extracts authorization context (tenant UUID, user ID, client ID, roles) [FE01.001]
 3. System validates request body against user schema [FE05.003]
 4. System validates tenant exists and is enabled [FB00.004]
@@ -189,7 +189,7 @@ Integrates with external Auth Provider for JWT token validation and session mana
 
 **Primary Path:**
 
-1. Client sends authenticated request with JWT token [FA00.001]
+1. Client sends authenticated request with JWT token [FE01.001]
 2. System extracts authorization context [FE01.001]
 3. System validates UUID format for id parameter [FE05.003]
 4. System retrieves user entity [FH02.004]
@@ -237,7 +237,7 @@ Integrates with external Auth Provider for JWT token validation and session mana
 
 **Primary Path:**
 
-1. Client sends authenticated request with JWT token [FA00.001]
+1. Client sends authenticated request with JWT token [FE01.001]
 2. System extracts authorization context [FE01.001]
 3. System validates query parameters [FE05.003]
 4. System validates tenant exists and is enabled if tenant_id provided [FB00.004]
@@ -294,7 +294,7 @@ Integrates with external Auth Provider for JWT token validation and session mana
 
 **Primary Path:**
 
-1. Client sends authenticated request with JWT token [FA00.001]
+1. Client sends authenticated request with JWT token [FE01.001]
 2. System extracts authorization context [FE01.001]
 3. System validates query parameters [FE05.003]
 4. System validates search query is not empty
@@ -345,7 +345,7 @@ Integrates with external Auth Provider for JWT token validation and session mana
 
 **Primary Path:**
 
-1. Client sends authenticated request with JWT token [FA00.001]
+1. Client sends authenticated request with JWT token [FE01.001]
 2. System extracts authorization context [FE01.001]
 3. System validates request body [FE05.003]
 4. System validates UUID format for id parameter [FE05.003]
@@ -477,25 +477,36 @@ Integrates with external Auth Provider for JWT token validation and session mana
 
 **Protocol:** HTTP/REST
 
+**Endpoint Configuration:**
+
+- Base URL: Configured via `config.yml` auth_provider.endpoint
+- Connection timeout: 10 seconds [FA05.001]
+- Request timeout: 10 seconds [FA05.001]
+
 **Operations:**
 
 - `POST /api/auth/v1/verify`: Validate JWT token [FG01.001]
   - Request: `{"token": "jwt_string"}`
   - Response: `{"valid": true, "claims": {...}}`
   - Timeout: 10 seconds
-  - Retry: 3 attempts with exponential backoff
+  - Retry: 3 attempts with exponential backoff (1s, 2s, 4s)
+  - Error handling: Return 401 if validation fails
   
 - `POST /api/auth/v1/revoke`: Revoke user sessions [FG01.002]
   - Request: `{"user_id": "uuid"}`
   - Response: `{"revoked": true}`
   - Timeout: 10 seconds
-  - Retry: 3 attempts
+  - Retry: 3 attempts with exponential backoff
+  - Error handling: Log error, continue operation (non-critical)
 
 **Circuit Breaker:**
 
 - Threshold: 50% failures over 10 requests
 - Timeout: 30 seconds
 - Sleep window: 5 seconds
+- Half-open state: 1 test request
+
+**Code Reference:** `internal/clients/auth_client.go`, `configs/config.yml` auth_provider section
 
 ---
 
@@ -503,9 +514,24 @@ Integrates with external Auth Provider for JWT token validation and session mana
 
 **Purpose:** Publish user lifecycle events for downstream consumers
 
-**Protocol:** AMQP
+**Protocol:** AMQP 0.9.1
+
+**Connection Configuration:**
+
+- Host/Port: Configured via `config.yml` rabbitmq section [FA05.002]
+- Connection timeout: 30 seconds
+- Heartbeat interval: 60 seconds
+- Auto-reconnect: Enabled with exponential backoff
 
 **Exchange:** users.events (topic exchange)
+
+**Routing Keys:**
+
+- `users.created`: UserCreated event
+- `users.updated`: UserUpdated event
+- `users.deleted`: UserDeleted event
+- `users.status_changed`: UserStatusChanged event
+- `users.pruned`: UserPruned event
 
 **Events Published:**
 
@@ -534,9 +560,59 @@ Integrates with external Auth Provider for JWT token validation and session mana
 
 **Retry Mechanism:**
 
-- Failed events stored in messages table
+- Failed events stored in messages table [FG04.003]
 - Background job retries every 5 minutes
+- Retry attempts: 3 with exponential backoff
 - Messages >24 hours marked as permanently failed
+- Dead letter queue: messages.failed
+
+**Code Reference:** `internal/mq/publisher.go`, `internal/jobs/retry_messages.go`
+
+### External Service: Tenant Service
+
+**Purpose:** Validate tenant existence and retrieve tenant hierarchy information
+
+**Protocol:** HTTP/REST
+
+**Endpoint Configuration:**
+
+- Base URL: Configured via `config.yml` tenant_service.endpoint [FA05.003]
+- Connection timeout: 10 seconds
+- Request timeout: 30 seconds
+
+**Operations:**
+
+- `GET /api/tenants/v1/tenants/{id}`: Retrieve tenant details [FG01.003]
+  - Response: `{"id": "uuid", "status": "enabled", "parent_id": "uuid"}`
+  - Timeout: 30 seconds
+  - Retry: 3 attempts with exponential backoff
+  - Caching: 5 minutes TTL
+  - Error handling: Return 404 if tenant not found
+
+**Code Reference:** `internal/clients/tenant_client.go`, `configs/config.yml` tenant_service section
+
+---
+
+## Performance
+
+### Database Performance
+
+- **Connection pool**: Max 20 connections, Min 2 idle [FH00.001]
+- **Query timeout**: 30 seconds per query
+- **Index usage**: (tenant_id, email), (tenant_id, status), (deleted_at)
+- **Bulk operations**: List users limited to 1000 per request
+
+### Known Bottlenecks
+
+- **Large tenant queries**: Tenants with >10,000 users may experience slow list operations
+- **Search performance**: Full-text search degrades with >100,000 total users
+- **Event publishing**: High-frequency updates (>100/sec) may cause message queue backlog
+
+### Caching Strategy
+
+- **Tenant validation**: 5-minute TTL in-memory cache
+- **Auth token validation**: No caching (security requirement)
+- **User lookups**: No caching (consistency requirement)
 
 ---
 

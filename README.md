@@ -3,10 +3,10 @@
 ## 1. Document Index
 
 1. [FACTS_TAXONOMY.md](FACTS_TAXONOMY.md) - Core taxonomy of reusable facts and behaviors
-2. [prompts/1_CODE_TO_SPEC.md](prompts/1_CODE_TO_SPEC.md) - Initial code analysis and spec generation
-3. [prompts/2_VERIFY_ORIG_SPEC.md](prompts/2_VERIFY_ORIG_SPEC.md) - Specification verification and validation
-4. [prompts/3_SPEC_UPGRADE.md](prompts/3_SPEC_UPGRADE.md) - Spec improvement and enhancement
-5. [prompts/4_COMPARE_SPECS.md](prompts/4_COMPARE_SPECS.md) - Specification comparison and change tracking
+2. [prompts/01-code-to-spec.md](prompts/01-code-to-spec.md) - Initial code analysis and spec generation
+3. [prompts/02-verify-orig-spec.md](prompts/02-verify-orig-spec.md) - Specification verification and validation
+4. [prompts/03-spec-upgrade.md](prompts/03-spec-upgrade.md) - Spec improvement and enhancement
+5. [prompts/04-compare-specs.md](prompts/04-compare-specs.md) - Specification comparison and change tracking
 6. [samples/](samples/) - Example output files to guide your generation
 
 ## 2. Project Overview
@@ -80,9 +80,21 @@ cd /path/to/code-to-spec
 ln -s /absolute/path/to/your-orig-service ./legacy-service
 ```
 
+Symlink all the related repos associated to the service within `./legacy-service` folder Consider below examples:
+
+- API specifications - `./legacy-service/.apis/`
+- CTI type identifiers - `./legacy-service/.ctis/`
+- Documentation - `./legacy-service/.docs`
+
 From here on, point the agent at `./legacy-service` (or rename it to match your conventions).
 
-### Step3: Review Service Logic Taxonomy
+### Step3: Review Service Logic Taxonomy and Assess Existing Service Behavior (OpenSpec + prompt)
+
+Open you favorite IDE with agentic mode. Your first instruction should explicitly point it at the symlinked legacy repo and the prompt to use.
+
+Example instruction:
+
+```markdown
 
 Review `FACTS_TAXONOMY.md` as the canonical categorization system. This document defines:
 
@@ -94,13 +106,10 @@ Review `FACTS_TAXONOMY.md` as the canonical categorization system. This document
 
 All prompts and outputs must follow this taxonomy for consistency
 
-### Step4: Assess Existing Service Behavior (OpenSpec + prompt)
+"With openspec":
 
-Open you favorite IDE with agentic mode. Your first instruction should explicitly point it at the symlinked legacy repo and the prompt to use.
-
-Example instruction:
-
-- "With openspec: Review my old Go-lang service in `./legacy-service` and do what I describe in `prompts/1_CODE_TO_SPEC.md`. Use `FACTS_TAXONOMY.md` for fact categorization. Output `orig-behavior.md`, `orig-tasks.md` and `orig-design-facts-and-rationale.md` into a new folder for that capability."
+- Review my old Go-lang service in `./legacy-service`, associated technical material like API specifications, CTI type identifiers, Documentation etc in `./legacy-service/.*` folders and do what I describe in `prompts/01-code-to-spec.md`. Use `FACTS_TAXONOMY.md` for fact categorization. 
+- Output `orig-behavior.md`, `orig-tasks.md` and `orig-design-facts-and-rationale.md` into a new folder for that capability."
 
 Output per analyzed capability/module is typically:
 
@@ -108,16 +117,18 @@ Output per analyzed capability/module is typically:
 - `orig-design-facts-and-rationale.md`: reusable facts extracted from that behavior, categorized per `FACTS_TAXONOMY.md`, referenced by ID `[FXYY.ZZZ]` in `orig-behavior.md`
 - `orig-tasks.md`: implementation tasks with fact/scenario references and acceptance criteria
 
-### Step5: Verify and Correct Specifications (multiple LLM passes)
+```
 
-Use prompt:
+### Step4: Verify and Correct Specifications (multiple LLM passes)
 
-- `prompts/2_VERIFY_ORIG_SPEC.md`
+Use the following prompt:
 
-Goal:
+```markdown
+
+Do what I describe in `prompts/02-verify-orig-spec.md` to achieve below **goal**:
 
 - make **only critical corrections** to `orig-behavior.md`, `orig-tasks.md` and `orig-design-facts-and-rationale.md`
-- explicitly verify, per scenario:
+- double check below for each scenario:
   - **API role checks**
   - **DB access checks**
   - **license checks**
@@ -128,9 +139,11 @@ Goal:
   - **concurrency / thread pooling**
   - and whether **soft-deleted items** are included or excluded
 
-### Step6: Propose Improvements (spec upgrade)
+```
 
-**Before running the upgrade**, document your requested changes in `_change_intent/service-feature-change.md`:
+### Step5: Propose Improvements (spec upgrade)
+
+**Before running the upgrade**, document your requested changes in `_manual_input/02-new-service-feature-change.md`:
 
 - Use the simplified format: `[Priority] Type: Feature/Endpoint - Brief reason`
 - Priority: `P0` (critical), `P1` (high), `P2` (medium), `P3` (low)
@@ -138,34 +151,35 @@ Goal:
 - Add optional 1-2 line notes for complex changes
 - The AI will expand these into full specs using `FACTS_TAXONOMY.md` and existing patterns
 
-Then use prompt:
+```markdown
 
-- `prompts/3_SPEC_UPGRADE.md`
-
-The AI will read your change intent file and incorporate those requests along with industry best practices.
-
-Output:
+Do what I describe in `prompts/03-spec-upgrade.md` to achieve below **goal**:
 
 - `new-behavior.md` created by copying `orig-behavior.md` and applying improvements from change intent file
-- `new-design-facts-and-rationale.md` updated with new facts following FACTS_TAXONOMY.md
-- `new-tasks.md` updated with implementation tasks for new features
+- `new-design-facts-and-rationale.md` copying `orig-design-facts-and-rationale.md` and  updated with new facts following `FACTS_TAXONOMY.md`
+- `new-tasks.md` copying `orig-tasks.md` and updated with implementation tasks for new features
 - Every newly introduced step or scenario MUST be marked with a `[NEW]` prefix (so diffs are easy)
 - Modified scenarios marked with `[MODIFIED]` prefix
+- Remove scenarios, design, facts and tasks thats mentioned in the change intent file 
 
-### Step7: Compare specs and prepare final FACTS/BEHAVIOR/TASKS/DESIGN for code generation
+```
 
-Use prompt:
+### Step6: Compare specs and prepare final FACTS/BEHAVIOR/TASKS/DESIGN for code generation
 
-- `prompts/4_COMPARE_SPECS.md`
+Use the following prompt:
+
+```markdown
+
+Do what I describe in `prompts/04-compare-specs.md`.
 
 At this stage you have:
 
 - **ORIG**: audited snapshot of current system behavior
-- **NEW**: improved target behavior (still spec-only)
+- **NEW**, **MODIFIED**: improved target behavior (still spec-only)
 
 Then:
 
-- compare **ORIG** vs **NEW** with special attention to changes in:
+- compare **ORIG** vs **NEW** & **MODIFIED** with special attention to changes in:
   - APIs (paths, request/response schemas, streaming formats)
   - scenarios (steps, conditions, fact references)
   - **API role checks**, **DB access checks**, **license checks**, **quota checks**
@@ -175,7 +189,9 @@ Then:
   - assign change importance: **MAJOR**, **MODERATE**, **MINOR**
 - reconcile and finalize:
   - update facts and references to keep `[FXYY.ZZZ]` consistent
-  - produce the final `new-design-facts-and-rationale.md`, `new-tasks.md` + `new-behavior.md` as the source-of-truth for rewriting and/or code generation
+  - update the final `new-design-facts-and-rationale.md`, `new-tasks.md` + `new-behavior.md` as the source-of-truth for rewriting and/or code generation
+
+```
 
 ## 5. Developer Guide: How to Use the Samples
 
@@ -225,12 +241,12 @@ This mapping allows you to start with human-readable Markdown and "upgrade" to m
 ## 8. Repo map (high-level)
 
 - **Taxonomy**: `FACTS_TAXONOMY.md`
-- **Change Intent**: `_change_intent/service-feature-change.md` - Developer input for spec upgrades
+- **Change Intent**: `_manual_input/02-new-service-feature-change.md` - Developer input for spec upgrades
 - **Prompts**:
-  - `prompts/1_CODE_TO_SPEC.md`
-  - `prompts/2_VERIFY_ORIG_SPEC.md`
-  - `prompts/3_SPEC_UPGRADE.md`
-  - `prompts/4_COMPARE_SPECS.md`
+  - `prompts/01-code-to-spec.md`
+  - `prompts/02-verify-orig-spec.md`
+  - `prompts/03-spec-upgrade.md`
+  - `prompts/04-compare-specs.md`
 - **The flow outputs**:
   - `orig-behavior.md` - original source code behavior
   - `orig-design-facts-and-rationale.md`  - original source code facts

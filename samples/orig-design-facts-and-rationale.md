@@ -8,29 +8,110 @@ This document contains reusable facts extracted from the User Service and design
 
 ### FA — Context & System Definition
 
-**[FA00.001] – Service mission statement**
-Multi-tenant user identity and profile management system providing CRUD operations via REST API with JWT authentication.
+### FA00: Service Identity
 
-**[FA00.002] – Bounded context**
-User management for multi-tenant environments, user lifecycle, profile management, authentication integration, event publishing.
+**[FA00.001] – Service Name**
 
-**[FA00.004] – Service dependencies**
-Auth Provider (JWT validation), PostgreSQL, RabbitMQ, Tenant Service.
+- **Fact**: The service is named "User Service" (internal: user-service)
+- **Rationale**: Descriptive name indicating purpose as user identity and profile management
+- **Code Reference**: `cmd/user-service/main.go`, service configuration files
 
-**[FA01.001] – Language & runtime**
-Go 1.20, gorilla/mux (HTTP router), pgx (PostgreSQL), bcrypt (password hashing).
+**[FA00.002] – Service Purpose**
 
-**[FA02.001] – PostgreSQL 14+**
-Primary data store, pgx driver, connection pooling.
+- **Fact**: User Service provides multi-tenant user identity and profile management with CRUD operations via REST API
+- **Rationale**: Centralized user management enables consistent identity across platform services
+- **Code Reference**: API specifications, service documentation
 
-**[FA02.004] – RabbitMQ**
-Event publishing via AMQP, topic exchange, routing keys: users.{action}.
+**[FA00.003] – Bounded Context**
 
-**[FA07.001] – Configuration sources**
-YAML file, environment variables, volume-mounted secrets.
+- **Fact**: User management for multi-tenant environments, user lifecycle, profile management, authentication integration, event publishing
+- **Rationale**: Clear service boundaries prevent overlap with Auth Provider (authentication) and Tenant Service (tenant management)
+- **Code Reference**: Domain model definitions in `internal/domain/`
 
-**[FA08.001] – Log format**
-Structured JSON logging via zap library.
+### FA01: Technology Stack
+
+**[FA01.001] – Primary Language**
+
+- **Fact**: Service implemented in Go 1.20
+- **Rationale**: Performance, concurrency support, strong typing for enterprise service
+- **Code Reference**: `go.mod`, build configurations
+
+**[FA01.002] – HTTP Router**
+
+- **Fact**: gorilla/mux for HTTP routing
+- **Rationale**: Mature, feature-rich router with good middleware support
+- **Code Reference**: `internal/api/router.go`
+
+**[FA01.003] – Password Hashing**
+
+- **Fact**: bcrypt library for password hashing with cost factor 12
+- **Rationale**: Industry standard, resistant to brute force attacks
+- **Code Reference**: `internal/security/password.go`
+
+### FA02: Data & Messaging Infrastructure
+
+**[FA02.001] – Database**
+
+- **Fact**: PostgreSQL 14+ as primary data store, pgx driver
+- **Rationale**: ACID compliance, JSONB support, mature ecosystem
+- **Code Reference**: Database migration files, `internal/repository/`
+
+**[FA02.002] – Database Driver**
+
+- **Fact**: pgx driver for PostgreSQL connectivity
+- **Rationale**: Native Go driver, better performance than database/sql
+- **Code Reference**: `go.mod` dependencies, connection pool configuration
+
+**[FA02.003] – Message Queue**
+
+- **Fact**: RabbitMQ (AMQP 0.9.1) for event publishing
+- **Rationale**: Reliable message delivery, topic-based routing, industry standard
+- **Code Reference**: `internal/mq/` directory, AMQP configuration
+
+**[FA02.004] – API Protocol**
+
+- **Fact**: RESTful HTTP/HTTPS with JSON payloads
+- **Rationale**: Standard protocol for microservices, wide client support
+- **Code Reference**: API handler implementations in `internal/api/`
+
+### FA05: External Dependencies
+
+**[FA05.001] – Auth Provider Dependency**
+
+- **Fact**: Service depends on Auth Provider for JWT token validation and session management
+- **Rationale**: Centralized authentication and authorization management
+- **Code Reference**: `internal/clients/auth_client.go`, `configs/config.yml` auth_provider section
+- **Configuration**: Base URL, connection timeout (10s), request timeout (10s)
+
+**[FA05.002] – Message Queue Dependency**
+
+- **Fact**: Service depends on RabbitMQ for event publishing
+- **Rationale**: Asynchronous event delivery, decoupling from consumers
+- **Code Reference**: `internal/mq/publisher.go`, `configs/config.yml` rabbitmq section
+- **Configuration**: Host/port, connection timeout (30s), heartbeat interval (60s)
+
+**[FA05.003] – Tenant Service Dependency**
+
+- **Fact**: Service depends on Tenant Service for tenant validation and hierarchy information
+- **Rationale**: Validate tenant existence and retrieve tenant metadata
+- **Code Reference**: `internal/clients/tenant_client.go`, `configs/config.yml` tenant_service section
+- **Configuration**: Base URL, connection timeout (10s), request timeout (30s), cache TTL (5 minutes)
+
+### FA07: Configuration
+
+**[FA07.001] – Configuration Sources**
+
+- **Fact**: Configuration loaded from YAML file, environment variables, and volume-mounted secrets
+- **Rationale**: Flexible configuration for different deployment environments
+- **Code Reference**: `configs/config.yml`, `internal/config/loader.go`
+
+### FA08: Observability
+
+**[FA08.001] – Log Format**
+
+- **Fact**: Structured JSON logging via zap library
+- **Rationale**: Machine-parsable logs for aggregation and analysis
+- **Code Reference**: `internal/logging/logger.go`
 
 ---
 
@@ -230,10 +311,25 @@ Database operations: 3 retries with exponential backoff. External APIs: 3 retrie
 ### FG — Outbound Gateways
 
 **[FG01.001] – Auth Provider verify**
-POST /api/auth/v1/verify. Validates JWT token. Timeout: 10s. Retry: 3x.
+
+- **Fact**: POST /api/auth/v1/verify validates JWT token
+- **Rationale**: Centralized token validation ensures consistent security across services
+- **Code Reference**: `internal/clients/auth_client.go` VerifyToken method
+- **Configuration**: Timeout 10s, retry 3x with exponential backoff (1s, 2s, 4s)
 
 **[FG01.002] – Auth Provider revoke**
-POST /api/auth/v1/revoke. Revokes user sessions. Timeout: 10s. Retry: 3x.
+
+- **Fact**: POST /api/auth/v1/revoke revokes user sessions
+- **Rationale**: Enables immediate session termination when user is deleted or deactivated
+- **Code Reference**: `internal/clients/auth_client.go` RevokeSession method
+- **Configuration**: Timeout 10s, retry 3x, non-critical (log error and continue)
+
+**[FG01.003] – Tenant Service get tenant**
+
+- **Fact**: GET /api/tenants/v1/tenants/{id} retrieves tenant details
+- **Rationale**: Validate tenant existence and status before user operations
+- **Code Reference**: `internal/clients/tenant_client.go` GetTenant method
+- **Configuration**: Timeout 30s, retry 3x, cache TTL 5 minutes
 
 **[FG02.001] – UserCreated event**
 Routing: users.created. Payload: user_id, tenant_id, email, username, status.
